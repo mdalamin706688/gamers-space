@@ -3,6 +3,21 @@
     <h1>Add Posts</h1>
     <form @submit.prevent="submitHandler">
 
+
+        <div v-if="imageUpload">
+            <img :src="imageUpload"/>
+        </div>
+
+        <div class="input_field">
+            <input
+                 type="file"
+                 @change="processFile($event)"
+                 ref="myFileInput"
+            
+            >
+
+        </div>
+
         <div 
                 class="input_field"
                 :class="{invalid: $v.formdata.title.$error}"
@@ -66,8 +81,22 @@
         </div>
 
         <button type="submit">Add Post</button>
+        </form>
 
-    </form>
+        <md-dialog :md-active="dialog">
+            <p>
+                Post has no content, are you sure to post this ?
+            </p>
+            <md-dialog-actions>
+               <md-button class="md-primary" @click="dialogOnCancel">Oops!!! I want to add it.</md-button>
+               <md-button class="md-primary" @click="dialogOnConfirm">Yes I am sure.</md-button>
+            </md-dialog-actions>
+
+        </md-dialog>
+
+        <div v-if="addpost" class="post_succesfull">
+            Your post was posted
+        </div>
 </div>
 </template>
 
@@ -77,7 +106,9 @@ import { required, maxLength } from 'vuelidate/lib/validators';
 export default {
     data(){
         return {
+            dialog: false,
             formdata:{
+                img:'',
                 title:'',
                 desc:'',
                 content:'',
@@ -92,17 +123,71 @@ export default {
             },
             desc:{
                 required,
-                maxLength: maxLength(10)
+                maxLength: maxLength(100)
             },
             rating:{
                 required
             }
         }
     },
+    computed:{
+         addpost(){
+             let status = this.$store.getters['admin/addPostStatus'];
+                 if(status){
+                    this.clearPost()
+                    this.$store.commit('admin/clearImageUpload')
+                 }
+                 
+            return status
+         },
+         imageUpload(){
+             let imageUrl = this.$store.getters['admin/imageUpload'];
+             // eslint-disable-next-line vue/no-side-effects-in-computed-properties
+             this.formdata.img = imageUrl;
+             return imageUrl;
+         }
+},
     methods:{
+        clearPost(){
+           this.$v.$reset()
+           this.$refs.myFileInput.value = '';
+           this.formdata = {
+               img:'',
+               title:'',
+               desc:'',
+               content:'',
+               rating:''
+           }
+        },
         submitHandler(){
+             if(!this.$v.$invalid){
+                  if(this.formdata.content === ''){
+                        this.dialog = true;
+                  } else {
+                        this.addPost()
+                  }
+             } else {
+                alert('something is wrong')
+             }
 
+        },
+        dialogOnCancel(){
+            this.dialog = false;
+        },
+        dialogOnConfirm(){
+            this.dialog = false;
+            this.addPost()
+        },
+        addPost(){
+            this.$store.dispatch('admin/addPost', this.formdata)
+        },
+        processFile(event){
+             let file = event.target.files[0];
+             this.$store.dispatch('admin/imageUpload',file)
         }
+    },
+    destroyed(){
+        this.$store.commit('admin/clearImageUpload')
     }
 }
 
